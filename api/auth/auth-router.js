@@ -1,7 +1,48 @@
-const router = require('express').Router();
+const router = require("express").Router();
+const { JWT_SECRET } = require("../secrets"); 
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const db = require('../../data/dbConfig');
+const {checkUsernameExists} = require('../middleware/auth-middleware')
 
-router.post('/register', (req, res) => {
-  res.end('implement register, please!');
+function buildToken(user){
+  const payload = {
+    id: user.id,
+    username: user.username,
+  }
+
+  const options = {
+    expiresIn: '1d'
+  }
+
+  return jwt.sign(payload, JWT_SECRET, options)
+}
+
+
+//Psedo model?
+async function findById(id) {
+  const wanted = await db("users").where({id})
+  return wanted[0]
+}
+
+async function add(user) {
+  const result = await db("users").insert(user);
+  const id = result[0]
+  return findById(id);
+}
+
+
+
+
+router.post('/register', checkUsernameExists, async (req, res) => {
+  const user = req.body;
+  const hash = bcrypt.hashSync(user.password, 8)
+
+  user.password = hash
+
+  const newUser = await add(user)
+  res.status(201).json(newUser)
+
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
